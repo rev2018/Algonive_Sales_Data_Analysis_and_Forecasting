@@ -1,0 +1,227 @@
+# COMPLETE SALES DATA ANALYSIS & FORECAST SYSTEM  
+
+# Import libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from prophet import Prophet
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.ensemble import IsolationForest
+import warnings
+warnings.filterwarnings('ignore')
+
+# For sentiment analysis 
+from textblob import TextBlob
+
+# For interactive widgets (optional)
+from ipywidgets import interact, IntSlider, Dropdown
+
+# Load dataset
+file_path = '/content/customer_shopping_data.csv'
+df = pd.read_csv(file_path)
+print(f"Loaded dataset with {df.shape[0]} rows and {df.shape[1]} columns")
+print(df.head())
+
+# Data Cleaning & Preprocessing
+df.columns = df.columns.str.lower()
+df['invoice_date'] = pd.to_datetime(df['invoice_date'], errors='coerce')
+df = df.dropna(subset=['invoice_date'])
+
+# Convert quantity and price to numeric, fill missing with median
+df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(df['quantity'].median())
+df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(df['price'].median())
+
+# Drop any remaining NaNs and duplicates
+df = df.dropna().drop_duplicates()
+
+# Create sales column
+df['sales'] = df['quantity'] * df['price']
+print(f"Post-cleaning dataset size: {df.shape[0]} rows")
+
+# Feature Engineering
+df['year'] = df['invoice_date'].dt.year
+df['month'] = df['invoice_date'].dt.month
+df['day_of_week'] = df['invoice_date'].dt.dayofweek  # Monday=0
+df['week_of_year'] = df['invoice_date'].dt.isocalendar().week
+
+# Sentiment analysis if review data present
+if 'product_review' in df.columns:
+    df['review_sentiment'] = df['product_review'].apply(lambda x: TextBlob(str(x)).sentiment.polarity)
+else:
+    print("No 'product_review' column found; skipping sentiment analysis.")
+
+# Exploratory Data Analysis (EDA)
+print("\n--- Dataset Summary Statistics ---")
+print(df.describe())
+
+# Anomaly Detection for sales outliers
+iso_forest = IsolationForest(contamination=0.01, random_state=42)
+df['anomaly'] = iso_forest.fit_predict(df[['sales']])
+outliers = df[df['anomaly'] == -1]
+print(f"Identified {len(outliers)} sales anomalies.")
+
+# Ploting sales with anomalies highlighted
+plt.figure(figsize=(12,5))
+daily_sales_sum = df.groupby('invoice_date')['sales'].sum()
+plt.plot(daily_sales_sum.index, daily_sales_sum.values, label='Sales')
+plt.scatter(outliers['invoice_date'], outliers['sales'], color='red', label='Anomalies')
+plt.title("Sales Over Time with Anomalies")
+plt.xlabel("Date")
+plt.ylabel("Sales")
+plt.legend()
+plt.show()
+
+# Daily sales trend plotting function
+def plot_daily_sales(data):
+    plt.figure(figsize=(12,5))
+    plt.plot(data['invoice_date'], data['sales'], marker='o')
+    plt.title('Daily Sales Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Total Sales')
+    plt.tight_layout()
+    plt.show()
+
+daily_sales = df.groupby('invoice_date')['sales'].sum().reset_index()
+plot_daily_sales(daily_sales)
+
+# Sales breakdown by category
+category_sales = df.groupby('category')['sales'].sum().sort_values(ascending=False).reset_index()
+plt.figure(figsize=(10,5))
+sns.barplot(data=category_sales, x='category', y='sales')
+plt.title('Total Sales by Category')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# Sales breakdown by gender
+gender_sales = df.groupby('gender')['sales'].sum().reset_index()
+plt.figure(figsize=(6,4))
+sns.barplot(data=gender_sales, x='gender', y='sales')
+plt.title('Sales by Gender')
+plt.tight_layout()
+plt.show()
+
+# Interactive Dashboard using Plotly
+fig = make_subplots(rows=3, cols=1, shared_xaxes=True,
+                    subplot_titles=["Daily Sales", "Sales by Category", "Sales by Gender"])
+
+fig.add_trace(go.Scatter(x=daily_sales['invoice_date'], y=daily_sales['sales'], mode='lines', name='Daily Sales'), row=1, col=1)
+fig.add_trace(go.Bar(x=category_sales['category'], y=category_sales['sales'], name='Category Sales'), row=2, col=1)
+fig.add_trace(go.Bar(x=gender_sales['gender'], y=gender_sales['sales'], name='Gender Sales'), row=3, col=1)
+
+fig.update_layout(height=900, title_text="Sales Data Dashboard")
+fig.show()
+
+# Forecasting with Prophet (with holidays & monthly seasonality)
+from prophet.make_holidays import make_holidays_df
+
+holidays = pd.DataFrame({
+    'holiday': 'special_day',
+    'ds': pd.to_datetime(['2023-12-25', '2024-01-01', '2024-11-28']),
+    'lower_window': 0,
+    'upper_window': 1,
+})
+
+forecast_df = daily_sales.rename(columns={'invoice_date': 'ds', 'sales': 'y'})
+train, test = forecast_df.iloc[:-30], forecast_df.iloc[-30:]
+
+model = Prophet(daily_seasonality=True, holidays=holidays)
+model.add_seasonality(name='monthly', period=30.5, fourier_order=5)
+model.fit(train)
+
+future = model.make_future_dataframe(periods=30)
+forecast = model.predict(future)
+
+# Aligning forecast with test data for error calculation
+forecast_test = forecast.set_index('ds').reindex(test['ds'])
+mae = np.mean(np.abs(forecast_test['yhat'] - test['y']))
+print(f"\nForecast MAE (Mean Absolute Error): {mae:.2f}")
+
+# Plot actual vs forecast
+plt.figure(figsize=(12,6))
+plt.plot(train['ds'], train['y'], label='Training Data')
+plt.plot(test['ds'], test['y'], label='Test Data')
+plt.plot(forecast['ds'], forecast['yhat'], label='Forecast')
+plt.fill_between(forecast['ds'], forecast['yhat_lower'], forecast['yhat_upper'], color='orange', alpha=0.3)
+plt.title("Sales Forecast Using Prophet")
+plt.xlabel("Date")
+plt.ylabel("Sales")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Inventory Optimization
+category_daily_sales = df.groupby(['category', 'invoice_date'])['sales'].sum().reset_index()
+avg_daily_sales_per_cat = category_daily_sales.groupby('category')['sales'].mean().reset_index().rename(columns={'sales':'avg_daily_sales'})
+avg_daily_sales_per_cat['recommended_stock'] = avg_daily_sales_per_cat['avg_daily_sales'] * 30  # for next month estimate
+
+print("\nInventory Optimization Recommendations (Next Month Stock):")
+print(avg_daily_sales_per_cat[['category', 'recommended_stock']])
+
+# Customer Segmentation for Marketing
+cust_agg = df.groupby('customer_id').agg({
+    'sales': 'sum',
+    'quantity': 'sum',
+    'invoice_date': 'nunique'
+}).rename(columns={'invoice_date': 'unique_purchase_days'})
+
+cust_agg['avg_purchase'] = cust_agg['sales'] / cust_agg['unique_purchase_days']
+
+scaler = StandardScaler()
+scaled_features = scaler.fit_transform(cust_agg[['sales', 'quantity', 'avg_purchase']])
+
+kmeans = KMeans(n_clusters=3, random_state=42)
+cust_agg['segment'] = kmeans.fit_predict(scaled_features)
+
+print("\nCustomer Segmentation Sample:")
+print(cust_agg.head())
+
+segment_perf = cust_agg.groupby('segment')['avg_purchase'].mean().reset_index()
+target_segment = segment_perf.sort_values('avg_purchase', ascending=False).iloc[0]['segment']
+print(f"\nRecommended Marketing Target Segment: Segment {target_segment}")
+
+# Cohort Analysis (Customer Retention)
+df['cohort_month'] = df.groupby('customer_id')['invoice_date'].transform('min').dt.to_period('M')
+df['invoice_month'] = df['invoice_date'].dt.to_period('M')
+
+cohort_data = df.groupby(['cohort_month', 'invoice_month']).agg(customers=('customer_id', 'nunique')).reset_index()
+cohort_data['period_number'] = (cohort_data['invoice_month'] - cohort_data['cohort_month']).apply(lambda x: x.n)
+cohort_pivot = cohort_data.pivot(index='cohort_month', columns='period_number', values='customers')
+
+cohort_size = cohort_pivot.iloc[:,0]
+retention_matrix = cohort_pivot.divide(cohort_size, axis=0)
+
+print("\nCohort Retention Matrix Sample:")
+print(retention_matrix.head())
+
+plt.figure(figsize=(12,6))
+sns.heatmap(retention_matrix, annot=True, fmt='.0%', cmap='Blues')
+plt.title('Cohort Retention Rates')
+plt.show()
+
+# Sentiment Analysis Summary (if applicable)
+if 'review_sentiment' in df.columns:
+    avg_sentiment = df['review_sentiment'].mean()
+    print(f"\nAverage Review Sentiment Polarity: {avg_sentiment:.3f}")
+else:
+    print("No sentiment data available; skipping sentiment summary.")
+
+# Interactive forecasting parameter tuning (because running in Colab)
+def interactive_forecast(changepoint_prior_scale=0.05, seasonality_prior_scale=10.0):
+    model = Prophet(
+        daily_seasonality=True,
+        changepoint_prior_scale=changepoint_prior_scale,
+        seasonality_prior_scale=seasonality_prior_scale
+    )
+    model.fit(train)
+    future = model.make_future_dataframe(periods=30)
+    forecast = model.predict(future)
+    fig = model.plot(forecast)
+    plt.title(f'Forecast with changepoint_prior_scale={changepoint_prior_scale}, seasonality_prior_scale={seasonality_prior_scale}')
+    plt.show()
+
