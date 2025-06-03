@@ -1,0 +1,97 @@
+Loaded dataset with 99457 rows and 10 columns
+  invoice_no customer_id  gender  age  category  quantity    price  \
+0    I138884     C241288  Female   28  Clothing         5  1500.40   
+1    I317333     C111565    Male   21     Shoes         3  1800.51   
+2    I127801     C266599    Male   20  Clothing         1   300.08   
+3    I173702     C988172  Female   66     Shoes         5  3000.85   
+4    I337046     C189076  Female   53     Books         4    60.60   
+
+  payment_method invoice_date   shopping_mall  
+0    Credit Card     5/8/2022          Kanyon  
+1     Debit Card   12/12/2021  Forum Istanbul  
+2           Cash    9/11/2021       Metrocity  
+3    Credit Card   16/05/2021    Metropol AVM  
+4           Cash   24/10/2021          Kanyon  
+Post-cleaning dataset size: 40029 rows
+No 'product_review' column found; skipping sentiment analysis.
+
+--- Dataset Summary Statistics ---
+                age      quantity         price  \
+count  40029.000000  40029.000000  40029.000000   
+mean      43.340578      3.000525    688.646427   
+min       18.000000      1.000000      5.230000   
+25%       30.000000      2.000000     40.660000   
+50%       43.000000      3.000000    203.300000   
+75%       56.000000      4.000000   1200.320000   
+max       69.000000      5.000000   5250.000000   
+std       14.971381      1.411924    941.074600   
+
+                        invoice_date         sales          year  \
+count                          40029  40029.000000  40029.000000   
+mean   2022-02-14 07:51:24.134002688   2527.448565   2021.654451   
+min              2021-01-01 00:00:00      5.230000   2021.000000   
+25%              2021-07-09 00:00:00    130.750000   2021.000000   
+50%              2022-02-06 00:00:00    600.170000   2022.000000   
+75%              2022-09-02 00:00:00   2700.720000   2022.000000   
+max              2023-12-02 00:00:00  26250.000000   2023.000000   
+std                              NaN   4216.941539      0.654988   
+
+              month   day_of_week  week_of_year  
+count  40029.000000  40029.000000       40029.0  
+mean       6.464288      3.003448     25.481526  
+min        1.000000      0.000000           1.0  
+25%        3.000000      1.000000          13.0  
+50%        6.000000      3.000000          26.0  
+75%        9.000000      5.000000          39.0  
+max       12.000000      6.000000          53.0  
+std        3.436443      1.986750     15.001951  
+Identified 391 sales anomalies.
+
+
+
+
+DEBUG:cmdstanpy:input tempfile: /tmp/tmpzxgp8k5q/xlq_8sxs.json
+DEBUG:cmdstanpy:input tempfile: /tmp/tmpzxgp8k5q/j5_ypuye.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['/usr/local/lib/python3.11/dist-packages/prophet/stan_model/prophet_model.bin', 'random', 'seed=70597', 'data', 'file=/tmp/tmpzxgp8k5q/xlq_8sxs.json', 'init=/tmp/tmpzxgp8k5q/j5_ypuye.json', 'output', 'file=/tmp/tmpzxgp8k5q/prophet_model0hssfc2f/prophet_model-20250603150843.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+15:08:43 - cmdstanpy - INFO - Chain [1] start processing
+INFO:cmdstanpy:Chain [1] start processing
+15:08:43 - cmdstanpy - INFO - Chain [1] done processing
+INFO:cmdstanpy:Chain [1] done processing
+
+Forecast MAE (Mean Absolute Error): nan
+
+
+Inventory Optimization Recommendations (Next Month Stock):
+          category  recommended_stock
+0            Books       3.239203e+04
+1         Clothing       4.281148e+06
+2        Cosmetics       2.517896e+05
+3  Food & Beverage       3.231405e+04
+4            Shoes       2.548847e+06
+5         Souvenir       2.322984e+04
+6       Technology       2.163853e+06
+7             Toys       1.515494e+05
+
+Customer Segmentation Sample:
+               sales  quantity  unique_purchase_days  avg_purchase  segment
+customer_id                                                                
+C100005      2400.68         2                     1       2400.68        0
+C100006       322.56         3                     1        322.56        0
+C100025       143.36         2                     1        143.36        0
+C100034      1200.32         2                     1       1200.32        0
+C100042       650.56         4                     1        650.56        0
+
+Recommended Marketing Target Segment: Segment 2.0
+
+Cohort Retention Matrix Sample:
+period_number    0
+cohort_month      
+2021-01        1.0
+2021-02        1.0
+2021-03        1.0
+2021-04        1.0
+2021-05        1.0
+
+No sentiment data available; skipping sentiment summary.
