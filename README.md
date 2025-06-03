@@ -56,10 +56,14 @@ This project was completed as part of an academic internship. It simulates real-
 4. Dashboard-based reporting
 
 - Author
-Reva Saxena
-GitHub: https://github.com/rev2018
-LinkedIn: https://www.linkedin.com/in/reva-saxena-61bb33342/
+  
+ Reva Saxena
+ 
+ GitHub: https://github.com/rev2018
+ 
+ LinkedIn: https://www.linkedin.com/in/reva-saxena-61bb33342/
 
 - Contributions and Feedback
+
 Feel free to fork the repository, raise issues, or suggest improvements. Collaboration and feedback are welcomed.
 
